@@ -1,0 +1,19 @@
+[Unit]
+Description=Voice Display Voice Pipeline
+After=network.target voice-display-ui.service
+Requires=voice-display-ui.service
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/voice-display/voice
+Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native
+ExecStart=/home/%i/voice-display/voice/venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+# Audio device access
+SupplementaryGroups=audio
+
+[Install]
+WantedBy=multi-user.target

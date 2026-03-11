@@ -1,0 +1,14 @@
+[Unit]
+Description=Kiosk Display (X11 + Chromium)
+After=network.target voice-display-ui.service
+Wants=voice-display-ui.service
+ConditionPathExists=/dev/tty1
+
+[Service]
+Type=simple
+ExecStart=/bin/su - %i -c "xinit /home/%i/.xinitrc -- :0 vt1 -keeptty -nolisten tcp"
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

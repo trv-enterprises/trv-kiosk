@@ -1,0 +1,3 @@
+# Command server requirements (Python 3.6 compatible)
+websockets>=8.0,<11.0
+paho-mqtt>=1.5.0,<2.0

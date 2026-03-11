@@ -1,0 +1,58 @@
+# Voice Display Server Configuration
+# Trimmed version of dashboard server config
+
+server:
+  port: 3001
+  host: "0.0.0.0"
+  mode: release
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 10s
+
+mongodb:
+  # Connect to your MongoDB instance
+  uri: "mongodb://YOUR_MONGODB_HOST:27017"
+  # Use separate database for voice display
+  database: "voice_display"
+  connection_timeout: 10s
+  max_pool_size: 10
+  min_pool_size: 2
+
+redis:
+  # Connect to your Redis instance
+  addr: "YOUR_REDIS_HOST:6379"
+  password: ""
+  # Use separate database (1 instead of 0)
+  db: 1
+  max_retries: 3
+  pool_size: 10
+  min_idle_conns: 2
+
+cors:
+  allowed_origins:
+    - "*"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Accept"
+    - "Authorization"
+    - "Content-Type"
+    - "X-CSRF-Token"
+    - "X-User-ID"
+  expose_headers:
+    - "Link"
+  allow_credentials: true
+  max_age: 300
+
+logging:
+  level: info
+  format: json
+  output: stdout
+
+# Static files disabled - display runs separately
+static_files:
+  enabled: false

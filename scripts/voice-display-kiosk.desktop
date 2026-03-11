@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Voice Display Kiosk
+Comment=Launch voice display clock in kiosk mode
+Exec=/bin/bash -c "sleep 5 && chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-restore-session-state http://localhost:5174"
+X-GNOME-Autostart-enabled=true
