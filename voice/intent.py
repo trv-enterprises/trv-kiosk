@@ -62,6 +62,15 @@ SOUND_ALIKES = {
     # "minute" mishearings
     "minit": "minute",
     "mint": "minute",
+    # "pause" mishearings
+    "paws": "pause",
+    "paus": "pause",
+    "pos": "pause",
+    # "resume" mishearings
+    "presume": "resume",
+    "result": "resume",
+    # "continue" mishearings
+    "can to new": "continue",
 }
 
 # Number words to digits
@@ -129,6 +138,18 @@ INTENT_PATTERNS = {
     "wake_screen": [
         r"\b(wake|turn\s*on|activate)\b.*\b(screen|display|monitor)\b",
         r"\b(screen|display|monitor)\b.*\b(wake|on)\b",
+    ],
+    "pause_carousel": [
+        r"\b(pause|freeze|hold)\b.*\b(carousel|rotation|cycling|display|screen)\b",
+        r"\bstop\s+(rotating|cycling)\b",
+        r"\bpause\b$",
+        r"\bfreeze\b$",
+    ],
+    "resume_carousel": [
+        r"\b(resume|continue|unpause)\b.*\b(carousel|rotation|cycling|display|screen)?\b",
+        r"\bstart\s+(rotating|cycling)\b",
+        r"\bresume\b$",
+        r"\bcontinue\b$",
     ],
 }
 
@@ -243,6 +264,12 @@ class IntentResolver:
 
         elif intent == "show_timer":
             return {"action": "show_timer"}
+
+        elif intent == "pause_carousel":
+            return {"action": "pause_carousel"}
+
+        elif intent == "resume_carousel":
+            return {"action": "resume_carousel"}
 
         else:
             return {"action": intent}

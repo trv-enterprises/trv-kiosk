@@ -26,7 +26,7 @@ whisper:
   # Max duration of recording after wake word (seconds) - safety net only
   max_recording_duration: 6
   # Bias decoder toward expected vocabulary (reduces mishearings)
-  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast minute minutes hour seconds"
+  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast minute minutes hour seconds pause resume continue"
 
 vad:
   # WebRTC VAD aggressiveness (0-3, higher = more aggressive filtering)
@@ -51,6 +51,18 @@ intent:
   # - reset/restart timer [N] -> reset_timer
   # - cancel/stop/clear timer [N] -> cancel_timer
   # - show/display timers -> show_timer
+  # - pause/stop/freeze -> pause_carousel
+  # - continue/resume -> resume_carousel
+
+carousel:
+  # Dwell time per view in seconds
+  dwell_times:
+    clock: 15
+    dashboard: 8
+    weather: 8
+    alerts: 8
+  # Seconds of no interaction before auto-resuming carousel from paused
+  inactivity_timeout: 60
 
 display:
   # Default view when no command
@@ -72,6 +84,8 @@ display:
   alert_audio_device: "plughw:1,0"  # ALSA output device (check with `aplay -l`)
   # Timer alarm sound (repeats every 15s until dismissed)
   timer_alarm_file: "/home/<user>/voice-display/sounds/alert.mp3"
+  # Chime sound for carousel entering alert view
+  chime_audio_file: "/home/<user>/voice-display/sounds/chime.wav"
 
 server:
   # Backend API URL (dashboard server)

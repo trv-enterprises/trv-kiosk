@@ -51,7 +51,13 @@ class DisplayCommander:
         # Timer alarm config
         self.timer_alarm_file = config.get("timer_alarm_file", "/home/user/voice-display/sounds/timer_alarm.wav")
         self._alarm_timers = {}  # timer_id -> threading.Timer for repeating alarms
-        self._garage_door_state = {}  # door_name -> last known contact state
+
+        # Chime audio config (softer sound for carousel entering alert view)
+        self.chime_audio_file = config.get("chime_audio_file", "/home/user/voice-display/sounds/chime.wav")
+
+        # Track weather alert IDs for detecting new vs. resolved
+        self._last_weather_alert_ids = frozenset()
+        self._last_weather_alert_rules = set()  # rule names for resolution tracking
 
         self.clients = set()
         self.server = None
@@ -109,20 +115,20 @@ class DisplayCommander:
 
     def _on_mqtt_connect(self, client, userdata, flags, reason_code, properties):
         """Handle MQTT connection."""
-        logger.info(f"Connected to MQTT broker, subscribing to {self.mqtt_topic}, weather/alerts, and garage door sensors")
+        logger.info(f"Connected to MQTT broker, subscribing to {self.mqtt_topic}, weather/alerts, sensors/alerts")
         client.subscribe(self.mqtt_topic)
         client.subscribe("weather/alerts")
-        client.subscribe("zigbee2mqtt/Large Garage Door")
-        client.subscribe("zigbee2mqtt/Small Garage Door")
+        client.subscribe("sensors/alerts")
 
     def _on_mqtt_message(self, client, userdata, msg):
-        """Handle MQTT messages (Frigate alerts, weather alerts, and garage door sensors)."""
+        """Handle MQTT messages (Frigate alerts, weather alerts, sensor alerts)."""
         if msg.topic == "weather/alerts":
             self._handle_weather_alert(msg)
             return
-        if msg.topic.startswith("zigbee2mqtt/") and "Garage Door" in msg.topic:
-            self._handle_garage_door(msg)
+        if msg.topic == "sensors/alerts":
+            self._handle_sensor_alert(msg)
             return
+        # Frigate reviews
         try:
             payload = json.loads(msg.payload.decode())
             event_type = payload.get("type")
@@ -134,43 +140,147 @@ class DisplayCommander:
                 camera = payload.get("before", {}).get("camera", "unknown")
                 logger.info(f"Frigate alert received: {camera} (severity={severity})")
 
-                # Play alert sound
                 self._play_alert()
 
-                # Send show_frigate with auto-return duration (alert-triggered)
-                command = {
+                # Add to alert queue on display
+                alert_update = {
+                    "action": "alert_update",
+                    "alert": {
+                        "type": "new",
+                        "source": "frigate",
+                        "severity": "alert",
+                        "rule": f"frigate_{camera}",
+                        "message": f"Motion detected on {camera}",
+                        "device": camera,
+                    }
+                }
+                # Interrupt to Frigate view
+                interrupt = {
                     "action": "show_frigate",
                     "duration": self.alert_return_sec,
                     "source": "alert"
                 }
-                # Schedule coroutine from MQTT thread
                 if self._loop:
                     asyncio.run_coroutine_threadsafe(
-                        self.send_command(command),
-                        self._loop
+                        self.send_command(alert_update), self._loop
+                    )
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_command(interrupt), self._loop
                     )
         except json.JSONDecodeError:
             pass
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")
 
+    def _handle_sensor_alert(self, msg):
+        """Handle sensor alert from alert-engine (garage door, moisture, etc.)."""
+        try:
+            payload = json.loads(msg.payload.decode())
+            alert_type = payload.get("type")  # "new", "repeat", "resolved"
+            rule = payload.get("rule", "unknown")
+
+            logger.info(f"Sensor alert: type={alert_type}, rule={rule}")
+
+            # Forward alert to display queue
+            alert_update = {
+                "action": "alert_update",
+                "alert": {
+                    "type": alert_type,
+                    "source": payload.get("source", "alert_engine"),
+                    "severity": payload.get("severity", "warning"),
+                    "rule": rule,
+                    "message": payload.get("message", ""),
+                    "device": payload.get("device", ""),
+                }
+            }
+            if self._loop:
+                asyncio.run_coroutine_threadsafe(
+                    self.send_command(alert_update), self._loop
+                )
+
+            # On new alerts: play sound + interrupt to dashboard
+            if alert_type == "new":
+                self._play_alert()
+                interrupt = {
+                    "action": "show_dashboard",
+                    "duration": self.alert_return_sec,
+                    "source": "alert"
+                }
+                if self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_command(interrupt), self._loop
+                    )
+        except json.JSONDecodeError:
+            pass
+        except Exception as e:
+            logger.error(f"Error processing sensor alert: {e}")
+
     def _handle_weather_alert(self, msg):
         """Handle weather alert MQTT message — foreground weather view on new alerts."""
         try:
             alerts = json.loads(msg.payload.decode())
+
+            # Handle empty alerts (all resolved)
             if not alerts or not isinstance(alerts, list) or len(alerts) == 0:
+                # Resolve any previously tracked weather alerts
+                for rule in self._last_weather_alert_rules:
+                    resolved = {
+                        "action": "alert_update",
+                        "alert": {"type": "resolved", "rule": rule}
+                    }
+                    if self._loop:
+                        asyncio.run_coroutine_threadsafe(
+                            self.send_command(resolved), self._loop
+                        )
+                self._last_weather_alert_rules = set()
+                self._last_weather_alert_ids = frozenset()
                 return
 
             # Only foreground on new alerts (avoid re-triggering on retained messages)
             alert_ids = frozenset(a.get("id", a.get("event", "")) for a in alerts)
-            if hasattr(self, '_last_weather_alert_ids') and alert_ids == self._last_weather_alert_ids:
+            if alert_ids == self._last_weather_alert_ids:
                 return
             self._last_weather_alert_ids = alert_ids
 
             events = [a.get("event", "unknown") for a in alerts]
             logger.info(f"Weather alerts received: {events}")
 
-            # Play alert sound
+            # Track current weather alert rules for resolution
+            current_rules = set()
+            for a in alerts:
+                event = a.get("event", "unknown")
+                rule = f"weather_{event}"
+                current_rules.add(rule)
+
+                # Send alert_update for each weather alert
+                alert_update = {
+                    "action": "alert_update",
+                    "alert": {
+                        "type": "new",
+                        "source": "weather",
+                        "severity": "warning",
+                        "rule": rule,
+                        "message": a.get("headline", event),
+                        "device": "weather",
+                    }
+                }
+                if self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_command(alert_update), self._loop
+                    )
+
+            # Resolve weather alerts that are no longer present
+            for rule in self._last_weather_alert_rules - current_rules:
+                resolved = {
+                    "action": "alert_update",
+                    "alert": {"type": "resolved", "rule": rule}
+                }
+                if self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.send_command(resolved), self._loop
+                    )
+            self._last_weather_alert_rules = current_rules
+
             self._play_alert()
 
             # Show weather view with auto-return
@@ -181,53 +291,12 @@ class DisplayCommander:
             }
             if self._loop:
                 asyncio.run_coroutine_threadsafe(
-                    self.send_command(command),
-                    self._loop
+                    self.send_command(command), self._loop
                 )
         except json.JSONDecodeError:
             pass
         except Exception as e:
             logger.error(f"Error processing weather alert: {e}")
-
-    def _handle_garage_door(self, msg):
-        """Handle garage door contact sensor MQTT message — alert when door opens."""
-        try:
-            payload = json.loads(msg.payload.decode())
-            contact = payload.get("contact")
-            if contact is None:
-                return
-
-            # Extract door name from topic (e.g., "zigbee2mqtt/Large Garage Door" -> "Large Garage Door")
-            door_name = msg.topic.replace("zigbee2mqtt/", "")
-
-            # Only alert on state transition (not repeated reports)
-            prev_contact = self._garage_door_state.get(door_name)
-            self._garage_door_state[door_name] = contact
-
-            if contact is False and prev_contact is not False:
-                # Door just opened (transition from closed/unknown to open)
-                logger.info(f"Garage door opened: {door_name}")
-
-                # Play alert sound
-                self._play_alert()
-
-                # Show Frigate cameras (same as camera motion alert)
-                command = {
-                    "action": "show_frigate",
-                    "duration": self.alert_return_sec,
-                    "source": "alert"
-                }
-                if self._loop:
-                    asyncio.run_coroutine_threadsafe(
-                        self.send_command(command),
-                        self._loop
-                    )
-            elif contact is True and prev_contact is False:
-                logger.info(f"Garage door closed: {door_name}")
-        except json.JSONDecodeError:
-            pass
-        except Exception as e:
-            logger.error(f"Error processing garage door message: {e}")
 
     async def _handle_client(self, websocket):
         """Handle a client connection."""
@@ -257,6 +326,10 @@ class DisplayCommander:
                     elif action == "timer_error":
                         logger.info("Timer error, playing error sound")
                         self._play_error_sound()
+
+                    elif action == "play_chime":
+                        logger.info("Playing carousel chime")
+                        self._play_chime()
 
                 except json.JSONDecodeError:
                     logger.debug(f"Non-JSON message from display: {message}")
@@ -385,6 +458,31 @@ class DisplayCommander:
                 )
             except Exception as e:
                 logger.error(f"Failed to play error sound: {e}")
+
+    def _play_chime(self):
+        """Play a soft chime sound when carousel enters alert view."""
+        if not self.alert_audio_enabled:
+            return
+
+        if not os.path.exists(self.chime_audio_file):
+            logger.warning(f"Chime sound file not found: {self.chime_audio_file}")
+            return
+
+        try:
+            subprocess.Popen(
+                [
+                    "mpv", "--no-terminal", "--no-video",
+                    f"--audio-device=alsa/{self.alert_audio_device}",
+                    self.chime_audio_file
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            logger.info("Chime sound played")
+        except FileNotFoundError:
+            logger.error("mpv not installed - cannot play chime sound")
+        except Exception as e:
+            logger.error(f"Failed to play chime sound: {e}")
 
     def _play_alert(self):
         """Play alert sound for Frigate notifications."""
