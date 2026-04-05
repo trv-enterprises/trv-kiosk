@@ -84,8 +84,8 @@ display:
   alert_audio_device: "plughw:1,0"  # ALSA output device (check with `aplay -l`)
   # Timer alarm sound (repeats every 15s until dismissed)
   timer_alarm_file: "/home/<user>/voice-display/sounds/alert.mp3"
-  # Chime sound for carousel entering alert view
-  chime_audio_file: "/home/<user>/voice-display/sounds/chime.wav"
+  # Chime sound for carousel entering alert view (reuses alert sound)
+  chime_audio_file: "/home/<user>/voice-display/sounds/alert.mp3"
 
 server:
   # Backend API URL (dashboard server)
