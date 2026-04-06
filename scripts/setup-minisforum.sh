@@ -135,7 +135,7 @@ exec chromium-browser \
     --no-first-run \
     --fast \
     --fast-start \
-    --disable-features=TranslateUI \
+    --disable-features=TranslateUI,BackForwardCache \
     --disk-cache-dir=/tmp/chromium \
     http://localhost:5174
 EOF
