@@ -5,10 +5,7 @@ import { useRef, useEffect } from 'react'
 
 const USER_ID = import.meta.env.VITE_DASHBOARD_USER_ID || 'default'
 const DASHBOARD_HOST = import.meta.env.VITE_DASHBOARD_HOST || 'http://YOUR_DASHBOARD_HOST'
-
-function dashboardUrl() {
-  return `${DASHBOARD_HOST}?user=${USER_ID}&_t=${Date.now()}`
-}
+const DASHBOARD_URL = `${DASHBOARD_HOST}?user=${USER_ID}`
 
 export default function DashboardView({ active }) {
   const iframeRef = useRef(null)
@@ -18,11 +15,9 @@ export default function DashboardView({ active }) {
     if (!iframeRef.current) return
 
     if (active) {
-      if (hasLoaded.current && iframeRef.current.src !== 'about:blank') {
-        // Already showing dashboard, don't reload
-        return
+      if (hasLoaded.current && iframeRef.current.src !== DASHBOARD_URL) {
+        iframeRef.current.src = DASHBOARD_URL
       }
-      iframeRef.current.src = dashboardUrl()
       hasLoaded.current = true
     } else if (hasLoaded.current) {
       iframeRef.current.src = 'about:blank'
@@ -32,7 +27,7 @@ export default function DashboardView({ active }) {
   return (
     <iframe
       ref={iframeRef}
-      src={active || !hasLoaded.current ? dashboardUrl() : 'about:blank'}
+      src={active || !hasLoaded.current ? DASHBOARD_URL : 'about:blank'}
       style={{
         width: '100%',
         height: '100%',
