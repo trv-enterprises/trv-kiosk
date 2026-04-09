@@ -38,11 +38,14 @@ function weatherIcon(icon, size = 96) {
 }
 
 function formatHour(datetime) {
-  // datetime is "HH:MM:SS"
-  const hour = parseInt(datetime.split(':')[0], 10)
-  if (hour === 0) return '12AM'
-  if (hour === 12) return '12PM'
-  return hour > 12 ? `${hour - 12}PM` : `${hour}AM`
+  // Extract hour from "HH:MM:SS", "YYYY-MM-DDThh:mm:ss", or "YYYY-MM-DD hh:mm:ss"
+  const timePart = datetime.includes('T') ? datetime.split('T')[1]
+    : datetime.includes(' ') ? datetime.split(' ')[1]
+    : datetime
+  const hour = parseInt(timePart.split(':')[0], 10)
+  if (hour === 0) return '12 AM'
+  if (hour === 12) return '12 PM'
+  return hour > 12 ? `${hour - 12} PM` : `${hour} AM`
 }
 
 function formatDay(datetime) {
@@ -126,19 +129,12 @@ function DetailItem({ label, value }) {
   )
 }
 
-// Hourly forecast — horizontal rows, 6 hours
+// Hourly forecast — scrollable list, up to 24 hours
 function HourlyForecast({ data }) {
   if (!data || data.length === 0) return null
 
-  // Show next 6 hours starting from current hour
-  const now = new Date()
-  const currentHour = now.getHours()
-  const upcoming = data.filter(h => {
-    const hour = parseInt(h.datetime.split(':')[0], 10)
-    return hour >= currentHour
-  }).slice(0, 6)
-
-  const hours = upcoming.length > 0 ? upcoming : data.slice(0, 6)
+  // Data is pre-filtered by the poller to next 24 hours
+  const hours = data
 
   return (
     <div style={{
@@ -146,26 +142,29 @@ function HourlyForecast({ data }) {
       flexDirection: 'column',
       gap: 3,
       flex: 1,
+      overflowY: 'auto',
+      minHeight: 0,
     }}>
       {hours.map((h, i) => (
         <div key={i} style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '2px 10px',
+          padding: '4px 10px',
           backgroundColor: 'rgba(255,255,255,0.04)',
           borderRadius: 8,
-          flex: 1,
+          flexShrink: 0,
+          minHeight: 32,
         }}>
-          <div style={{ fontSize: 18, fontWeight: 500, opacity: 0.6, width: 48, flexShrink: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 500, opacity: 0.6, width: 48, flexShrink: 0 }}>
             {formatHour(h.datetime)}
           </div>
-          {weatherIcon(h.icon, 28)}
-          <div style={{ fontSize: 22, fontWeight: 600, flexShrink: 0 }}>
+          {weatherIcon(h.icon, 24)}
+          <div style={{ fontSize: 20, fontWeight: 600, flexShrink: 0 }}>
             {Math.round(h.temp)}°
           </div>
           {h.precipprob > 20 && (
-            <div style={{ fontSize: 16, color: '#78a9ff', fontWeight: 500, marginLeft: 'auto' }}>
+            <div style={{ fontSize: 14, color: '#78a9ff', fontWeight: 500, marginLeft: 'auto' }}>
               {Math.round(h.precipprob)}%
             </div>
           )}
