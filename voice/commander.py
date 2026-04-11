@@ -36,7 +36,6 @@ class DisplayCommander:
         self.config = config
         self.host = config.get("websocket_host", "localhost")
         self.port = config.get("websocket_port", 8765)
-        self.alert_return_sec = config.get("alert_return_sec", 30)
 
         # MQTT config for Frigate alerts
         self.mqtt_broker = config.get("mqtt_broker", "YOUR_MQTT_BROKER")
@@ -154,10 +153,11 @@ class DisplayCommander:
                         "device": camera,
                     }
                 }
-                # Interrupt to Frigate view
+                # Drive the display to the dashboard. The React side plays
+                # the chime, handles the "peek" behavior if a timer is
+                # currently visible, and otherwise stays on dashboard.
                 interrupt = {
-                    "action": "show_frigate",
-                    "duration": self.alert_return_sec,
+                    "action": "show_dashboard",
                     "source": "alert"
                 }
                 if self._loop:
@@ -198,12 +198,11 @@ class DisplayCommander:
                     self.send_command(alert_update), self._loop
                 )
 
-            # On new alerts: play sound + interrupt to dashboard
+            # On new alerts: play sound + drive to dashboard
             if alert_type == "new":
                 self._play_alert()
                 interrupt = {
                     "action": "show_dashboard",
-                    "duration": self.alert_return_sec,
                     "source": "alert"
                 }
                 if self._loop:
@@ -283,10 +282,11 @@ class DisplayCommander:
 
             self._play_alert()
 
-            # Show weather view with auto-return
+            # Drive the display to the dashboard. Weather alerts used to
+            # foreground the weather view specifically, but the kiosk's
+            # home view is now the dashboard and all alerts route there.
             command = {
-                "action": "show_weather",
-                "duration": self.alert_return_sec,
+                "action": "show_dashboard",
                 "source": "alert"
             }
             if self._loop:

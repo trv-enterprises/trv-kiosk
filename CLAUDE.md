@@ -1,6 +1,6 @@
 # CLAUDE.md - Voice-Controlled Smart Display (Kiosk)
 
-This project builds a voice-controlled smart display that shows a clock by default and responds to voice commands to switch views or show dashboards. Runs on Jetson Nano 2GB (legacy) or Minisforum M1 (primary).
+This project builds a voice-controlled smart display that shows the dashboard by default, and responds to voice commands to switch views. Alerts from Frigate, weather, or the alert engine force the display to the dashboard and play an alert chime. Runs on Jetson Nano 2GB (legacy) or Minisforum M1 (primary).
 
 ## Architecture
 
@@ -14,7 +14,8 @@ This project builds a voice-controlled smart display that shows a clock by defau
 │                                                    │                 │
 │  ┌─────────────────────────────────────────────────▼───────────────┐│
 │  │              Chromium Kiosk (React Display App)                 ││
-│  │   ClockView (default) | FrigateView | Dashboard Views           ││
+│  │   DashboardView (default) | ClockView | WeatherView |           ││
+│  │   FrigateView | TimerView | AlertView                           ││
 │  └─────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────┘
                               │ REST API
