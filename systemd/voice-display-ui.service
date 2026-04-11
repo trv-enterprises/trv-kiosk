@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=%i
-WorkingDirectory=/home/%i/voice-display/display/dist
+User=tviviano
+WorkingDirectory=/home/tviviano/voice-display/display/dist
 ExecStart=/usr/bin/python3 -m http.server 5174 --bind 0.0.0.0
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 [Install]

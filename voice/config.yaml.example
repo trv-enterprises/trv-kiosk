@@ -1,4 +1,13 @@
-# Voice Pipeline Configuration
+# Voice Pipeline Configuration (EXAMPLE)
+#
+# This file is a documentation sample showing all available config
+# keys with placeholder values. For deployment via Ansible, the
+# template at voice/config.yaml.j2 is rendered with real values from
+# inventory.
+#
+# For local/standalone dev, copy this file to config.yaml and edit
+# the placeholders marked with <...> or YOUR_... to point at real
+# resources on your network.
 
 wake_word:
   # Model name (built-in or path to custom model)
@@ -26,7 +35,7 @@ whisper:
   # Max duration of recording after wake word (seconds) - safety net only
   max_recording_duration: 6
   # Bias decoder toward expected vocabulary (reduces mishearings)
-  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast minute minutes hour seconds pause resume continue"
+  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds"
 
 vad:
   # WebRTC VAD aggressiveness (0-3, higher = more aggressive filtering)
@@ -41,40 +50,28 @@ vad:
   confirmation_sound: "/home/<user>/voice-display/sounds/confirm.wav"
 
 intent:
-  # Intent resolution uses local pattern matching (no external API)
+  # Intent resolution uses local pattern matching (no external API).
   # Supported commands:
   # - show/display/go to + clock/time -> show_clock
   # - show/display/go to + camera/cameras/video/frigate -> show_frigate
   # - show/display/go to + dashboard/dash -> show_dashboard
+  # - show/display/go to + weather/forecast -> show_weather
+  # - show/display/go to + alerts/notifications -> show_alerts
   # - wake/turn on + screen/display -> wake_screen
   # - set/start timer + duration -> set_timer
   # - reset/restart timer [N] -> reset_timer
   # - cancel/stop/clear timer [N] -> cancel_timer
   # - show/display timers -> show_timer
-  # - pause/stop/freeze -> pause_carousel
-  # - continue/resume -> resume_carousel
-
-carousel:
-  # Dwell time per view in seconds
-  dwell_times:
-    clock: 15
-    dashboard: 8
-    weather: 8
-    alerts: 8
-  # Seconds of no interaction before auto-resuming carousel from paused
-  inactivity_timeout: 60
 
 display:
-  # Default view when no command
-  default_view: "clock"
-  # Auto-return to clock after alert-triggered view change (seconds)
-  # Voice commands do NOT auto-return - user must say "show clock"
-  alert_return_sec: 30
+  # Default view on load. The display has no auto-rotating carousel
+  # and stays on this view until a voice command, alert, or timer.
+  default_view: "dashboard"
   # WebSocket port for display communication
   websocket_port: 8765
   # WebSocket host (localhost since voice runs on same device)
   websocket_host: "localhost"
-  # MQTT broker for receiving alerts (Frigate, weather, etc.)
+  # MQTT broker for receiving alerts (Frigate, weather, sensors)
   mqtt_broker: "YOUR_MQTT_BROKER"
   mqtt_port: 1883
   mqtt_topic: "frigate/reviews"
@@ -84,7 +81,7 @@ display:
   alert_audio_device: "plughw:1,0"  # ALSA output device (check with `aplay -l`)
   # Timer alarm sound (repeats every 15s until dismissed)
   timer_alarm_file: "/home/<user>/voice-display/sounds/alert.mp3"
-  # Chime sound for carousel entering alert view (reuses alert sound)
+  # Chime sound played when an alert arrives
   chime_audio_file: "/home/<user>/voice-display/sounds/alert.mp3"
 
 server:

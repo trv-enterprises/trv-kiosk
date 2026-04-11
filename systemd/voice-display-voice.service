@@ -1,15 +1,25 @@
 [Unit]
 Description=Voice Display Voice Pipeline
-After=network.target voice-display-ui.service
+# Wait for sound devices and udev to settle before starting. USB audio
+# devices can be slow to enumerate at boot, especially after a power
+# failure, and the voice pipeline needs its mic present at startup.
+After=network.target sound.target systemd-udev-settle.service voice-display-ui.service
+Wants=sound.target systemd-udev-settle.service
 Requires=voice-display-ui.service
+# Throttle the restart loop so a permanently missing mic doesn't
+# rack up thousands of restarts. After StartLimitBurst failures
+# within StartLimitIntervalSec, systemd gives up and the service
+# has to be manually restarted.
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=%i
-WorkingDirectory=/home/%i/voice-display/voice
+User=tviviano
+WorkingDirectory=/home/tviviano/voice-display/voice
 Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native
-ExecStart=/home/%i/voice-display/voice/venv/bin/python main.py
-Restart=always
+ExecStart=/home/tviviano/voice-display/voice/venv/bin/python main.py
+Restart=on-failure
 RestartSec=10
 
 # Audio device access

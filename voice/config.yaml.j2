@@ -1,0 +1,52 @@
+# Voice Pipeline Configuration
+# Rendered by Ansible from voice/config.yaml.j2 — do not edit by hand.
+
+wake_word:
+  model: "hey_jarvis"
+  sensitivity: 0.2
+  sample_rate: 16000
+  chunk_size: 1280
+
+whisper:
+  model: "base"
+  device: "cpu"
+  compute_type: "int8"
+  language: "en"
+  beam_size: 1
+  vad_filter: true
+  max_recording_duration: 6
+  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds"
+
+vad:
+  aggressiveness: 2
+  silence_threshold_ms: 600
+  pre_speech_timeout_ms: 3000
+  min_speech_ms: 200
+  confirmation_sound: "{{ kiosk_home }}/voice-display/sounds/confirm.wav"
+
+intent:
+  # Local pattern matching, no external API.
+
+display:
+  # Home view on load (no auto-rotating carousel).
+  default_view: "dashboard"
+  websocket_port: 8765
+  websocket_host: "localhost"
+  mqtt_broker: "{{ kiosk_mqtt_broker }}"
+  mqtt_port: {{ kiosk_mqtt_port | default(1883) }}
+  mqtt_topic: "frigate/reviews"
+  alert_audio_enabled: true
+  alert_audio_file: "{{ kiosk_home }}/voice-display/sounds/alert.mp3"
+  alert_audio_device: "{{ kiosk_alert_audio_device | default('plughw:1,0') }}"
+  timer_alarm_file: "{{ kiosk_home }}/voice-display/sounds/alert.mp3"
+  chime_audio_file: "{{ kiosk_home }}/voice-display/sounds/alert.mp3"
+
+server:
+  url: "{{ kiosk_api_url }}"
+
+audio:
+  device_name: "{{ kiosk_audio_device_name | default('EMEET') }}"
+  device_index: {{ kiosk_audio_device_index | default(11) }}
+  sample_rate: 48000
+  channels: 1
+  chunk_size: 4410

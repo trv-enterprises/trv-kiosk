@@ -171,21 +171,63 @@ class VoiceDisplayPipeline:
         # Initialize PyAudio
         self._pyaudio = pyaudio.PyAudio()
 
-        # Resolve input device by name (survives USB re-enumeration across reboots)
-        resolved_index = self._find_device_by_name(self._pyaudio)
-        logger.info(f"Starting audio stream (device={resolved_index}, sample_rate={self.sample_rate}, chunk_size={self.chunk_size})")
+        # Open audio stream with retry. USB audio devices may not be
+        # fully enumerated by the kernel/udev at service start, especially
+        # on a cold boot after a power loss. If the initial open fails,
+        # re-initialize PyAudio (to pick up devices that appeared since)
+        # and try again after a short delay.
+        MAX_AUDIO_RETRIES = 3
+        AUDIO_RETRY_DELAY_SEC = 5
+        open_error = None
 
-        try:
-            # Open audio stream at 16kHz
-            self._audio_stream = self._pyaudio.open(
-                format=pyaudio.paInt16,
-                channels=self.channels,
-                rate=self.sample_rate,
-                input=True,
-                input_device_index=resolved_index,
-                frames_per_buffer=self.chunk_size
+        for attempt in range(1, MAX_AUDIO_RETRIES + 1):
+            if attempt > 1:
+                # Tear down and rebuild PyAudio to refresh the device list
+                try:
+                    self._pyaudio.terminate()
+                except Exception:
+                    pass
+                await asyncio.sleep(AUDIO_RETRY_DELAY_SEC)
+                self._pyaudio = pyaudio.PyAudio()
+
+            resolved_index = self._find_device_by_name(self._pyaudio)
+            logger.info(
+                f"Starting audio stream (attempt {attempt}/{MAX_AUDIO_RETRIES}, "
+                f"device={resolved_index}, sample_rate={self.sample_rate}, "
+                f"chunk_size={self.chunk_size})"
             )
 
+            try:
+                self._audio_stream = self._pyaudio.open(
+                    format=pyaudio.paInt16,
+                    channels=self.channels,
+                    rate=self.sample_rate,
+                    input=True,
+                    input_device_index=resolved_index,
+                    frames_per_buffer=self.chunk_size
+                )
+                open_error = None
+                break  # success
+            except OSError as e:
+                open_error = e
+                logger.warning(
+                    f"Audio device open failed on attempt {attempt}: {e}"
+                )
+
+        if open_error is not None:
+            logger.error(
+                f"Audio device not ready after {MAX_AUDIO_RETRIES} retries — exiting"
+            )
+            # Clean up and let systemd restart us (StartLimit prevents
+            # runaway restart loops if the mic is permanently missing).
+            try:
+                self._pyaudio.terminate()
+            except Exception:
+                pass
+            await self.commander.stop_server()
+            raise open_error
+
+        try:
             logger.info("Listening for wake word ('Hey Jarvis')...")
             chunk_count = 0
 
