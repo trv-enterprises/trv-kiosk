@@ -516,39 +516,44 @@ export default function App() {
         </div>
       </div>
 
-      {/* Navigation buttons - always visible except on clock view (for clean look) */}
+      {/* Navigation buttons - always visible except on clock view (for clean look).
+          Single row, compact sizing. No keyboard key hints - those were useful
+          for laptop dev but clutter the wall-mounted kiosk. */}
       {currentView !== 'clock' && (
         <div style={{
           position: 'absolute',
-          bottom: 20,
+          bottom: 12,
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: 12,
-          zIndex: 1000
+          flexWrap: 'nowrap',
+          gap: 8,
+          zIndex: 1000,
+          whiteSpace: 'nowrap',
         }}>
           {[
-            { action: 'show_dashboard', label: 'Dashboard', key: 'D', view: 'dashboard' },
-            { action: 'show_clock', label: 'Clock', key: 'C', view: 'clock' },
-            { action: 'show_frigate', label: 'Video', key: 'V', view: 'frigate' },
-            { action: 'show_weather', label: 'Weather', key: 'W', view: 'weather' },
-            { action: 'show_alerts', label: 'Alerts', key: 'N', view: 'alerts' },
+            { action: 'show_dashboard', label: 'Dashboard', view: 'dashboard' },
+            { action: 'show_clock', label: 'Clock', view: 'clock' },
+            { action: 'show_frigate', label: 'Video', view: 'frigate' },
+            { action: 'show_weather', label: 'Weather', view: 'weather' },
+            { action: 'show_alerts', label: 'Alerts', view: 'alerts' },
           ].map(btn => (
             <button
               key={btn.action}
               onClick={() => handleCommand({ action: btn.action })}
               style={{
-                padding: '12px 24px',
-                fontSize: 16,
+                padding: '6px 14px',
+                fontSize: 13,
                 fontWeight: 600,
                 backgroundColor: currentView === btn.view ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.7)',
                 color: '#fff',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: 8,
-                cursor: 'pointer'
+                borderRadius: 6,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
               }}
             >
-              {btn.label} ({btn.key})
+              {btn.label}
             </button>
           ))}
         </div>
