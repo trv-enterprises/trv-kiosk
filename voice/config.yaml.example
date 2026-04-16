@@ -35,7 +35,7 @@ whisper:
   # Max duration of recording after wake word (seconds) - safety net only
   max_recording_duration: 6
   # Bias decoder toward expected vocabulary (reduces mishearings)
-  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds"
+  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds next previous dismiss reviewed close"
 
 vad:
   # WebRTC VAD aggressiveness (0-3, higher = more aggressive filtering)
@@ -75,6 +75,10 @@ display:
   mqtt_broker: "YOUR_MQTT_BROKER"
   mqtt_port: 1883
   mqtt_topic: "frigate/reviews"
+  # MQTT topic used to publish dashboard voice commands (frigate-alert
+  # next/previous/dismiss/etc.). Must match the dashboard's
+  # dashboard_command_topic setting.
+  dashboard_command_topic: "dashboard/cmd"
   # Alert audio settings
   alert_audio_enabled: true
   alert_audio_file: "/home/<user>/voice-display/sounds/alert.mp3"

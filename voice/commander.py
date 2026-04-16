@@ -42,6 +42,19 @@ class DisplayCommander:
         self.mqtt_port = config.get("mqtt_port", 1883)
         self.mqtt_topic = config.get("mqtt_topic", "frigate/reviews")
 
+        # MQTT topic for dashboard voice commands (published when user
+        # issues frigate-alert commands while the dashboard view is
+        # active). Dashboard subscribes to this topic and routes by the
+        # `target` field in the payload.
+        self.dashboard_command_topic = config.get(
+            "dashboard_command_topic", "dashboard/cmd"
+        )
+
+        # Tracks which display view is currently active. Updated via
+        # view_changed messages from the display. Frigate-alert voice
+        # commands only publish to MQTT when view == "dashboard".
+        self.current_view = config.get("default_view", "dashboard")
+
         # Audio alert config
         self.alert_audio_file = config.get("alert_audio_file", "/home/user/voice-display/sounds/alert.mp3")
         self.alert_audio_device = config.get("alert_audio_device", "hw:2,0")  # ALSA output device
@@ -111,6 +124,27 @@ class DisplayCommander:
             logger.info(f"MQTT client connecting to {self.mqtt_broker}:{self.mqtt_port}")
         except Exception as e:
             logger.error(f"Failed to start MQTT client: {e}")
+
+    def _publish_dashboard_command(self, target: str, action: str):
+        """Publish a dashboard voice command to MQTT.
+
+        Payload matches the dashboard's expected format:
+            {"target": "<target>", "action": "<action>"}
+        """
+        if not self._mqtt_client:
+            logger.warning("MQTT client not available — cannot publish dashboard command")
+            return
+        if not action:
+            logger.warning("publish_dashboard_command called with empty action")
+            return
+        payload = json.dumps({"target": target, "action": action})
+        try:
+            self._mqtt_client.publish(self.dashboard_command_topic, payload)
+            logger.info(
+                f"Published dashboard command to {self.dashboard_command_topic}: {payload}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to publish dashboard command: {e}")
 
     def _on_mqtt_connect(self, client, userdata, flags, reason_code, properties):
         """Handle MQTT connection."""
@@ -331,6 +365,12 @@ class DisplayCommander:
                         logger.info("Playing carousel chime")
                         self._play_chime()
 
+                    elif action == "view_changed":
+                        view = data.get("view")
+                        if view and view != self.current_view:
+                            logger.info(f"Display view changed: {self.current_view} -> {view}")
+                            self.current_view = view
+
                 except json.JSONDecodeError:
                     logger.debug(f"Non-JSON message from display: {message}")
         except websockets.ConnectionClosed:
@@ -352,6 +392,40 @@ class DisplayCommander:
         # Handle local system commands
         if action == "wake_screen":
             self._wake_screen()
+            return
+
+        # Frigate-alert commands are published to MQTT for the dashboard
+        # to consume. Gated to the dashboard view — voice commands like
+        # "next alert" fired while on clock/weather/etc. are ignored,
+        # except that "show alert" falls through to show_alerts so the
+        # AlertView is surfaced regardless.
+        if action == "frigate_alert":
+            sub_action = command.get("sub_action")
+            if self.current_view == "dashboard":
+                self._publish_dashboard_command("frigate-alert", sub_action)
+                return
+            if sub_action == "show":
+                logger.info(
+                    "frigate_alert show off-dashboard — falling back to show_alerts"
+                )
+                command = {"action": "show_alerts"}
+                action = "show_alerts"
+            else:
+                logger.info(
+                    f"frigate_alert {sub_action} ignored — not on dashboard view "
+                    f"(current={self.current_view})"
+                )
+                return
+
+        # When on the dashboard, "show alerts" (plural) is ambiguous —
+        # the user is already looking at the alerts grid, so switching
+        # to AlertView is the wrong response. Treat it as a request to
+        # open the first unreviewed alert via MQTT instead.
+        if action == "show_alerts" and self.current_view == "dashboard":
+            logger.info(
+                "show_alerts on dashboard — publishing frigate-alert show instead"
+            )
+            self._publish_dashboard_command("frigate-alert", "show")
             return
 
         # For display commands, send via WebSocket

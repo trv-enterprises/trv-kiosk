@@ -135,10 +135,41 @@ INTENT_PATTERNS = {
         r"\b(the\s+)?(weather|forecast)\b$",
         r"\bwhat.*\b(weather|temperature|forecast)\b",
     ],
+    # Frigate alert commands — only published to MQTT when the display
+    # is on the dashboard view. Gating happens in the commander, which
+    # knows the current view. When NOT on dashboard, commander falls
+    # back to view navigation (show → show_alerts view, next/prev/etc.
+    # are dropped). Ordered before show_alerts so "next alert" etc.
+    # match the specific intent first.
+    "frigate_alert_next": [
+        r"\bnext\s+(alert|camera|one|event)\b",
+        r"\b(go\s*to\s*the\s*)?next\b$",
+    ],
+    "frigate_alert_previous": [
+        r"\b(previous|prev|back|last)\s+(alert|camera|one|event)\b",
+        r"\bprevious\b$",
+    ],
+    "frigate_alert_reviewed": [
+        r"\b(mark(\s+as)?|mark\s+it)\s+review(ed)?\b",
+        r"\b(that'?s?\s+)?review(ed)?\b$",
+        r"\bgot\s+it\b$",
+        r"\backnowledge(d)?\b",
+    ],
+    "frigate_alert_dismiss": [
+        r"\bdismiss(\s+(the\s+)?alert)?\b",
+    ],
+    "frigate_alert_close": [
+        r"\bclose\s+(the\s+)?(alert|modal|popup|it)\b",
+        r"\bclose\b$",
+    ],
+    "frigate_alert_show": [
+        r"\b(show|open|view)\s+(the\s+)?(first\s+)?alert\b(?!s)",
+        r"\bopen\s+alert\b",
+    ],
     "show_alerts": [
-        r"\b(show|display|go\s*to|switch\s*to|open|view)\b.*\b(alert|alerts|notification|notifications)\b",
-        r"\b(alert|alerts|notification|notifications)\b.*\b(show|display|view)\b",
-        r"\b(the\s+)?(alerts?|notifications?)\b$",
+        r"\b(show|display|go\s*to|switch\s*to|open|view)\b.*\b(alerts|notification|notifications)\b",
+        r"\b(alerts|notification|notifications)\b.*\b(show|display|view)\b",
+        r"\b(the\s+)?(alerts|notifications?)\b$",
     ],
     "wake_screen": [
         r"\b(wake|turn\s*on|activate)\b.*\b(screen|display|monitor)\b",
@@ -260,6 +291,11 @@ class IntentResolver:
 
         elif intent == "show_timer":
             return {"action": "show_timer"}
+
+        elif intent.startswith("frigate_alert_"):
+            # The suffix maps directly to the dashboard MQTT action.
+            sub_action = intent[len("frigate_alert_"):]
+            return {"action": "frigate_alert", "sub_action": sub_action}
 
         else:
             return {"action": intent}

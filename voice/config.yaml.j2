@@ -15,7 +15,7 @@ whisper:
   beam_size: 1
   vad_filter: true
   max_recording_duration: 6
-  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds"
+  initial_prompt: "timer alarm cancel reset show clock dashboard camera frigate weather forecast alerts notifications minute minutes hour seconds next previous dismiss reviewed close"
 
 vad:
   aggressiveness: 2
@@ -35,6 +35,7 @@ display:
   mqtt_broker: "{{ kiosk_mqtt_broker }}"
   mqtt_port: {{ kiosk_mqtt_port | default(1883) }}
   mqtt_topic: "frigate/reviews"
+  dashboard_command_topic: "{{ kiosk_dashboard_command_topic | default('dashboard/cmd') }}"
   alert_audio_enabled: true
   alert_audio_file: "{{ kiosk_home }}/voice-display/sounds/alert.mp3"
   alert_audio_device: "{{ kiosk_alert_audio_device | default('plughw:1,0') }}"

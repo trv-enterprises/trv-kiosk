@@ -58,7 +58,12 @@ export default function App() {
     timersRef.current = timers
   }, [timers])
 
-  useEffect(() => { currentViewRef.current = currentView }, [currentView])
+  useEffect(() => {
+    currentViewRef.current = currentView
+    // Notify the voice pipeline so it can gate context-dependent voice
+    // commands (e.g. frigate-alert MQTT publishes only fire on dashboard).
+    socketRef.current?.send({ action: 'view_changed', view: currentView })
+  }, [currentView])
   useEffect(() => { alertQueueRef.current = alertQueue }, [alertQueue])
 
   // --- Helpers ---
@@ -368,7 +373,12 @@ export default function App() {
   useEffect(() => {
     const socket = new CommandSocket({
       onCommand: (cmd) => handleCommandRef.current?.(cmd),
-      onConnect: () => setConnected(true),
+      onConnect: () => {
+        setConnected(true)
+        // Re-sync view state so the voice pipeline's gate for
+        // context-dependent commands survives voice restarts.
+        socket.send({ action: 'view_changed', view: currentViewRef.current })
+      },
       onDisconnect: () => setConnected(false)
     })
 
