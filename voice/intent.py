@@ -71,6 +71,10 @@ SOUND_ALIKES = {
     "result": "resume",
     # "continue" mishearings
     "can to new": "continue",
+    # "reviewed" mishearings
+    "previewed": "reviewed",
+    "preview": "review",
+    "view it": "reviewed",
 }
 
 # Number words to digits
