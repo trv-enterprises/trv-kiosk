@@ -114,16 +114,19 @@ class DisplayCommander:
             logger.warning("paho-mqtt not installed, Frigate alerts disabled")
             return
 
-        try:
-            self._mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-            self._mqtt_client.on_connect = self._on_mqtt_connect
-            self._mqtt_client.on_message = self._on_mqtt_message
+        # connect_async + loop_start lets paho own the connect retry. The
+        # background thread retries on its own — including the very first
+        # connect — so a boot-time "Network is unreachable" no longer wedges
+        # the client in a permanently-disconnected state.
+        self._mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self._mqtt_client.on_connect = self._on_mqtt_connect
+        self._mqtt_client.on_disconnect = self._on_mqtt_disconnect
+        self._mqtt_client.on_message = self._on_mqtt_message
+        self._mqtt_client.reconnect_delay_set(min_delay=1, max_delay=60)
 
-            self._mqtt_client.connect(self.mqtt_broker, self.mqtt_port, 60)
-            self._mqtt_client.loop_start()
-            logger.info(f"MQTT client connecting to {self.mqtt_broker}:{self.mqtt_port}")
-        except Exception as e:
-            logger.error(f"Failed to start MQTT client: {e}")
+        self._mqtt_client.connect_async(self.mqtt_broker, self.mqtt_port, 60)
+        self._mqtt_client.loop_start()
+        logger.info(f"MQTT client connecting to {self.mqtt_broker}:{self.mqtt_port}")
 
     def _publish_dashboard_command(self, target: str, action: str):
         """Publish a dashboard voice command to MQTT.
@@ -152,6 +155,10 @@ class DisplayCommander:
         client.subscribe(self.mqtt_topic)
         client.subscribe("weather/alerts")
         client.subscribe("sensors/alerts")
+
+    def _on_mqtt_disconnect(self, client, userdata, flags, reason_code, properties):
+        """Log disconnects so a silently-dropped broker link is visible."""
+        logger.warning(f"MQTT disconnected (reason_code={reason_code}); paho will retry")
 
     def _on_mqtt_message(self, client, userdata, msg):
         """Handle MQTT messages (Frigate alerts, weather alerts, sensor alerts)."""
