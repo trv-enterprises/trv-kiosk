@@ -124,9 +124,8 @@ INTENT_PATTERNS = {
         r"\b(the\s+)?time\b$",
     ],
     "show_frigate": [
-        r"\b(show|display|go\s*to|switch\s*to|open)\b.*\b(camera|cameras|video|frigate|feed|feeds)\b",
-        r"\b(camera|cameras|video|frigate|feed|feeds)\b.*\b(show|display|view)\b",
-        r"\b(the\s+)?(camera|cameras|video)\b$",
+        r"\b(show|display|go\s*to|switch\s*to|open|view)\b\s+(me\s+)?(the\s+)?(camera|cameras|video|frigate)\b",
+        r"\b(camera|cameras|video|frigate)\s+view\b",
     ],
     "show_dashboard": [
         r"\b(show|display|go\s*to|switch\s*to|open)\b.*\b(dashboard|dash|stats|sensors)\b",
