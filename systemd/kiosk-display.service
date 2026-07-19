@@ -1,11 +1,17 @@
 [Unit]
 Description=Kiosk Display (X11 + Chromium)
-After=network.target voice-display-ui.service
-Wants=voice-display-ui.service
+After=network-online.target tailscaled.service voice-display-ui.service
+Wants=network-online.target voice-display-ui.service
 ConditionPathExists=/dev/tty1
 
 [Service]
 Type=simple
+# The dashboard iframe is fetched over the tailnet. At cold boot Chromium can
+# win the race against tailscaled; the dashboard app then dead-ends on a
+# "Failed to fetch" error page that never retries. Wait up to 60s for the
+# Tailscale backend to reach Running before launching X/Chromium, but fall
+# through on timeout so the display still comes up without connectivity.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do tailscale status --json 2>/dev/null | grep -q "\"BackendState\": \"Running\"" && exit 0; sleep 1; done; exit 0'
 ExecStart=/bin/su - %i -c "xinit /home/%i/.xinitrc -- :0 vt1 -keeptty -nolisten tcp"
 Restart=always
 RestartSec=10
