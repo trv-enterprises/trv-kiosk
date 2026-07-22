@@ -351,7 +351,16 @@ class DisplayCommander:
                     data = json.loads(message)
                     action = data.get("action")
 
-                    if action == "timer_expired":
+                    if action == "ping":
+                        # Application-level heartbeat from the display. Reply so
+                        # the client can detect a stalled/half-open socket that
+                        # never fires onclose.
+                        try:
+                            await websocket.send(json.dumps({"action": "pong"}))
+                        except Exception:
+                            pass
+
+                    elif action == "timer_expired":
                         timer_id = data.get("timer_id")
                         logger.info(f"Timer {timer_id} expired, starting alarm")
                         self._start_timer_alarm(timer_id)
