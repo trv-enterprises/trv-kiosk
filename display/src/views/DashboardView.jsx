@@ -1,11 +1,20 @@
 // Dashboard view - embeds the main dashboard UI
-// Accepts active prop to suspend/resume the iframe when not visible
+// Accepts active prop to suspend/resume the iframe when not visible.
+//
+// Auth model (dashboard v0.11.1+): the iframe URL carries an API
+// key as `?key=trve_…`. The dashboard's bootstrap chain consumes
+// the key, stamps it onto its apiClient (so subsequent API calls
+// send Authorization: Bearer trve_…), and strips it from the URL
+// bar. Generate the key from the dashboard's Manage → API Keys
+// page using the user account the kiosk should authenticate as.
 
 import { useRef, useEffect } from 'react'
 
-const USER_ID = import.meta.env.VITE_DASHBOARD_USER_ID || 'default'
+const API_KEY = import.meta.env.VITE_DASHBOARD_API_KEY || ''
 const DASHBOARD_HOST = import.meta.env.VITE_DASHBOARD_HOST || 'http://YOUR_DASHBOARD_HOST'
-const DASHBOARD_URL = `${DASHBOARD_HOST}?user=${USER_ID}`
+const DASHBOARD_URL = API_KEY
+  ? `${DASHBOARD_HOST}?key=${API_KEY}`
+  : DASHBOARD_HOST
 
 export default function DashboardView({ active }) {
   const iframeRef = useRef(null)
